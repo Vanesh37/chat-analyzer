@@ -1,3 +1,6 @@
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import re
 from urlextract import URLExtract
 from wordcloud import WordCloud
 import pandas as pd
@@ -60,3 +63,56 @@ def most_common_words(selected_user, df):
     most_common_df = pd.DataFrame(Counter(words).most_common(20))
 
     return most_common_df
+
+
+def preprocess(data):
+    pattern = r'(\d{1,2}/\d{1,2}/\d{2,4},\s\d{1,2}:\d{2}\s(?:am|pm)\s-\s)'
+    blocks = re.split(pattern, data)
+    dates = [block.strip() for block in blocks[1::2]]
+    messages = blocks[0::2]
+
+    if len(messages) != len(dates):
+        dates.append('')
+
+    df = pd.DataFrame({'user_message': messages, 'message_date': dates})
+    df = df[df['message_date'] != '']
+
+    users = []
+    messages = []
+    for message in df['user_message']:
+        entry = re.split('([\w\W]+?):\s', message)
+        if len(entry) > 1:
+            users.append(entry[1])
+            messages.append(entry[2])
+        else:
+            users.append('group_notifications')
+            messages.append(entry[0])
+
+    df['user'] = users
+    df['message'] = messages
+    df.drop(columns=['user_message', 'message_date'], inplace=True)
+
+    # Filter out messages containing <Media omitted> and group_notifications
+    df = df[~df['message'].str.contains('<Media omitted>')]
+    df = df[~df['user'].str.contains('group_notifications')]
+
+    return df
+
+
+# Function to perform sentiment analysis
+nltk.download('vader_lexicon')
+
+
+def perform_sentiment_analysis(messages):
+    sia = SentimentIntensityAnalyzer()
+    sentiments = []
+    for message in messages:
+        sentiment = sia.polarity_scores(message)
+        if sentiment['compound'] >= 0.05:
+            sentiment_type = 'Positive'
+        elif sentiment['compound'] <= -0.05:
+            sentiment_type = 'Negative'
+        else:
+            sentiment_type = 'Neutral'
+        sentiments.append(sentiment_type)
+    return sentiments
