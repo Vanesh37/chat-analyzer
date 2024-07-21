@@ -11,6 +11,8 @@ def date_to_day(date):
 
 
 def telegram():
+    st.sidebar.title("Telegram chat analyzer")
+
     data = st.sidebar.file_uploader('Upload Chat File', type='json')
     if data is not None:
         data = json.load(data)
