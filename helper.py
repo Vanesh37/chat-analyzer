@@ -6,7 +6,11 @@ from wordcloud import WordCloud
 import pandas as pd
 import emoji
 from collections import Counter
+from nltk.corpus import stopwords
 
+# Download and set stop words
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
 extract = URLExtract()
 
 
@@ -58,17 +62,18 @@ def create_wordcloud(selected_user, df):
 def most_common_words(selected_user, df):
     if selected_user != 'overall':
         df = df[df['user'] == selected_user]
+
     temp = df[df['user'] != 'group_notification']
     temp = temp[temp['message'] != '<Media omitted>\n']
+
     words = []
-
     for message in temp['message']:
-        words.extend(message.split())
+        for word in message.lower().split():
+            if word not in stop_words:
+                words.append(word)
 
-    from collections import Counter
-
-    most_cmn_df = pd.DataFrame(Counter(words).most_common(25))
-    return most_cmn_df
+    most_common_df = pd.DataFrame(Counter(words).most_common(20))
+    return most_common_df
 
 
 def emoji_helper(selected_user, df):
