@@ -143,3 +143,33 @@ def whatsapp():
 
                 st.title('Emoji analysis')
                 st.pyplot(fig)
+
+            # Sentiment Analysis
+            # Preprocess the data
+            df = helper.preprocess(data)
+
+            # Check if there are still any <Media omitted> or group_notifications messages
+            if df.empty:
+                st.write("No valid messages found.")
+            else:
+                # Perform sentiment analysis
+                sentiments = helper.perform_sentiment_analysis(df['message'])
+
+                # Add sentiment to DataFrame
+                df['sentiment'] = sentiments
+
+                # Aggregate sentiments for overall chat mood
+                overall_sentiment = df['sentiment'].value_counts().idxmax()
+
+                # Reset index to get continuous numbering
+                df.reset_index(drop=True, inplace=True)
+                df.index = df.index + 1
+
+                # Display data
+                st.header('Sentiment Analysis')
+                st.write(df[['user', 'message', 'sentiment']])
+
+                # Display overall mood of the chat
+                st.header('Overall Mood of the Chat')
+                st.write(
+                    f"The overall mood of the chat is {overall_sentiment.lower()}.")
