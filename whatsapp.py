@@ -6,9 +6,10 @@ import seaborn as sns
 
 
 def whatsapp():
-    st.sidebar.title("whatsapp chat analyzer")
+    st.sidebar.title("WhatsApp Chat Analyzer")
 
     uploaded_file = st.sidebar.file_uploader("Choose a file")
+
     if uploaded_file is not None:
         # To read file as bytes:
         bytes_data = uploaded_file.getvalue()
@@ -16,18 +17,38 @@ def whatsapp():
         df = preprocessor.preprocess(data)
 
         st.dataframe(df)
-        # fetch unique usersssss
 
+        # Fetch unique users
         user_list = df['user'].unique().tolist()
-        user_list.remove('group_notification')
+        if 'group_notification' in user_list:
+            user_list.remove('group_notification')
         user_list.sort()
         user_list.insert(0, "overall")
-        selected_user = st.sidebar.selectbox("show analysis wrt", user_list)
 
-        if st.sidebar.button("show analysis"):
+        selected_user = st.sidebar.selectbox(
+            "Show analysis with respect to", user_list)
 
-            # stats analysis
+        if st.sidebar.button("Show Analysis"):
 
+            # Initialize session state variables for each section
+            if "monthly_timeline" not in st.session_state:
+                st.session_state.monthly_timeline = False
+            if "daily_timeline" not in st.session_state:
+                st.session_state.daily_timeline = False
+            if "activity_map" not in st.session_state:
+                st.session_state.activity_map = False
+            if "busy_users" not in st.session_state:
+                st.session_state.busy_users = False
+            if "wordcloud" not in st.session_state:
+                st.session_state.wordcloud = False
+            if "common_words" not in st.session_state:
+                st.session_state.common_words = False
+            if "emoji_analysis" not in st.session_state:
+                st.session_state.emoji_analysis = False
+            if "sentiment_analysis" not in st.session_state:
+                st.session_state.sentiment_analysis = False
+
+            # Stats Analysis
             num_messages, words, num_media_msg, num_links = helper.fetch_stats(
                 selected_user, df)
             st.title("Top Statistics")
@@ -46,129 +67,235 @@ def whatsapp():
                 st.title(num_media_msg)
 
             with col4:
-                st.header("links Shared")
+                st.header("Links Shared")
                 st.title(num_links)
 
-            # monthly timeline
-            st.title("Monthly Timeline")
+            # Monthly Timeline Plot
             timeline = helper.monthly_timeline(selected_user, df)
-
-            fig, ax = plt.subplots()
-            ax.plot(timeline['time'], timeline['message'], color='red')
+            fig1, ax1 = plt.subplots()
+            ax1.plot(timeline['time'], timeline['message'], color='red')
+            ax1.set_title("Monthly Timeline")
+            ax1.set_xlabel("Time")
+            ax1.set_ylabel("Messages")
             plt.xticks(rotation='vertical')
-            st.pyplot(fig)
 
-            # daily timeline
-            st.title("Dialy Timeline")
+            # Store in session state
+            st.session_state.fig1 = fig1
+
+            # Daily Timeline Plot
             daily_timeline = helper.daily_timeline(selected_user, df)
-            fig, ax = plt.subplots()
-            ax.plot(daily_timeline['only_date'],
-                    daily_timeline['message'], color='black')
+            fig2, ax2 = plt.subplots()
+            ax2.plot(daily_timeline['only_date'],
+                     daily_timeline['message'], color='black')
+            ax2.set_title("Daily Timeline")
+            ax2.set_xlabel("Date")
+            ax2.set_ylabel("Messages")
             plt.xticks(rotation='vertical')
-            st.pyplot(fig)
 
-            # activity map
+            # Store in session state
+            st.session_state.fig2 = fig2
 
-            st.title('Activity map')
-            col1, col2 = st.columns(2)
+            # Most Busy Day Plot
+            busy_day = helper.week_activity_map(selected_user, df)
+            fig3, ax3 = plt.subplots()
+            ax3.bar(busy_day.index, busy_day.values)
+            ax3.set_title("Most Busy Day")
+            ax3.set_xlabel("Day of the Week")
+            ax3.set_ylabel("Messages")
+            plt.xticks(rotation='vertical')
 
-            with col1:
-                st.header("Most busy day")
-                busy_day = helper.week_activity_map(selected_user, df)
-                fig, ax = plt.subplots()
-                ax.bar(busy_day.index, busy_day.values)
-                plt.xticks(rotation='vertical')
-                st.pyplot(fig)
+            # Store in session state
+            st.session_state.fig3 = fig3
 
-            with col2:
-                st.header("Most busy month")
-                busy_month = helper.month_activity_map(selected_user, df)
-                fig, ax = plt.subplots()
-                ax.bar(busy_month.index, busy_month.values, color='orange')
-                plt.xticks(rotation='vertical')
-                st.pyplot(fig)
+            # Most Busy Month Plot
+            busy_month = helper.month_activity_map(selected_user, df)
+            fig4, ax4 = plt.subplots()
+            ax4.bar(busy_month.index, busy_month.values, color='orange')
+            ax4.set_title("Most Busy Month")
+            ax4.set_xlabel("Month")
+            ax4.set_ylabel("Messages")
+            plt.xticks(rotation='vertical')
 
-            st.title("weekly activity map")
+            # Store in session state
+            st.session_state.fig4 = fig4
+
+            # Weekly Activity Heatmap
             user_heatmap = helper.activity_heatmap(selected_user, df)
-            fig, ax = plt.subplots()
-            ax = sns.heatmap(user_heatmap)
-            st.pyplot(fig)
+            fig5, ax5 = plt.subplots()
+            sns.heatmap(user_heatmap, ax=ax5)
+            ax5.set_title("Weekly Activity Map")
 
-            # finding the busiet user in the group(Group level)
+            # Store in session state
+            st.session_state.fig5 = fig5
 
+            # Most Busy Users (Group Level)
             if selected_user == 'overall':
-                st.title('Most busy users')
                 x, new_df = helper.most_busy_users(selected_user, df)
+                fig6, ax6 = plt.subplots()
+                ax6.bar(x.index, x.values)
+                ax6.set_title("Most Busy Users")
+                ax6.set_xlabel("Users")
+                ax6.set_ylabel("Message Count")
+                plt.xticks(rotation='vertical')
 
-                fig, ax = plt.subplots()
+                # Store in session state
+                st.session_state.fig6 = fig6
+                st.session_state.new_df = new_df
 
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    ax.bar(x.index, x.values)
-                    plt.xticks(rotation='vertical')
-                    st.pyplot(fig)
-
-                with col2:
-                    st.dataframe(new_df)
-
-            # wordcloud
-            st.title("Word Cloud")
+            # Word Cloud Plot
             df_wc = helper.create_wordcloud(selected_user, df)
-            fig, ax = plt.subplots()
-            ax.imshow(df_wc)
-            st.pyplot(fig)
+            fig7, ax7 = plt.subplots()
+            ax7.imshow(df_wc)
+            ax7.set_title("Word Cloud")
+            ax7.axis("off")
 
-            # Most common words without stop words
+            # Store in session state
+            st.session_state.fig7 = fig7
+
+            # Most Common Words Plot
             most_cmn_df = helper.most_common_words(selected_user, df)
-            fig, ax = plt.subplots()
-            ax.barh(most_cmn_df[0], most_cmn_df[1])
+            fig8, ax8 = plt.subplots()
+            ax8.barh(most_cmn_df[0], most_cmn_df[1])
+            ax8.set_title("Most Common Words")
+            ax8.set_xlabel("Word Frequency")
+            ax8.set_ylabel("Words")
             plt.xticks(rotation='vertical')
-            st.title('Most Common Words')
-            st.pyplot(fig)
-            st.dataframe(most_cmn_df)
 
-            # emojii analysis
+            # Store in session state
+            st.session_state.fig8 = fig8
+            st.session_state.most_cmn_df = most_cmn_df
+
+            # Emoji Analysis Plot
             emoji_df = helper.emoji_helper(selected_user, df)
-            st.title('Emoji Analysis')
-            col1, col2 = st.columns(2)
+            fig9, ax9 = plt.subplots()
+            ax9.barh(emoji_df[0], emoji_df[1], color='skyblue')
+            ax9.set_title("Emoji Analysis")
+            ax9.set_xlabel("Frequency")
+            ax9.set_ylabel("Emoji")
 
-            with col1:
-                st.dataframe(emoji_df)
-
-            with col2:
-                fig, ax = plt.subplots()
-                ax.barh(emoji_df[0], emoji_df[1], color='skyblue')
-
-                st.title('Emoji analysis')
-                st.pyplot(fig)
+            # Store in session state
+            st.session_state.fig9 = fig9
+            st.session_state.emoji_df = emoji_df
 
             # Sentiment Analysis
-            # Preprocess the data
-            df = helper.preprocess(data)
+            sentiments = helper.perform_sentiment_analysis(df['message'])
+            df['sentiment'] = sentiments
+            overall_sentiment = df['sentiment'].value_counts().idxmax()
 
-            # Check if there are still any <Media omitted> or group_notifications messages
-            if df.empty:
-                st.write("No valid messages found.")
-            else:
+            # Reset index to get continuous numbering
+            df.reset_index(drop=True, inplace=True)
+            df.index = df.index + 1
+
+            # Store in session state
+            st.session_state.df = df
+            st.session_state.overall_sentiment = overall_sentiment
+
+    # Button for Monthly Timeline
+    if uploaded_file is not None and "fig1" in st.session_state:
+        if st.button(" Monthly Timeline"):
+            st.session_state.monthly_timeline = not st.session_state.monthly_timeline
+        if st.session_state.monthly_timeline:
+            st.pyplot(st.session_state.fig1)
+
+    # Button for Daily Timeline
+    if uploaded_file is not None and "fig2" in st.session_state:
+        if st.button(" Daily Timeline"):
+            st.session_state.daily_timeline = not st.session_state.daily_timeline
+        if st.session_state.daily_timeline:
+            st.pyplot(st.session_state.fig2)
+
+    # Button for Activity Map
+    if uploaded_file is not None and "fig3" in st.session_state and "fig4" in st.session_state and "fig5" in st.session_state:
+        if st.button(" Activity Map"):
+            st.session_state.activity_map = not st.session_state.activity_map
+        if st.session_state.activity_map:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.pyplot(st.session_state.fig3)
+            with col2:
+                st.pyplot(st.session_state.fig4)
+            st.pyplot(st.session_state.fig5)
+
+    # Button for Most Busy Users
+    if uploaded_file is not None and "fig6" in st.session_state and selected_user == 'overall':
+        if st.button(" Most Busy Users"):
+            st.session_state.busy_users = not st.session_state.busy_users
+        if st.session_state.busy_users:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.pyplot(st.session_state.fig6)
+            with col2:
+                st.dataframe(st.session_state.new_df)
+
+    # Button for Word Cloud
+    if uploaded_file is not None and "fig7" in st.session_state:
+        if st.button(" Word Cloud"):
+            st.session_state.wordcloud = not st.session_state.wordcloud
+        if st.session_state.wordcloud:
+            st.pyplot(st.session_state.fig7)
+
+    # Button for Most Common Words
+    if uploaded_file is not None and "fig8" in st.session_state:
+        if st.button(" Most Common Words"):
+            st.session_state.common_words = not st.session_state.common_words
+        if st.session_state.common_words:
+            st.pyplot(st.session_state.fig8)
+            st.dataframe(st.session_state.most_cmn_df)
+
+    # Button for Emoji Analysis
+    if uploaded_file is not None and "fig9" in st.session_state:
+        if st.button(" Emoji Analysis"):
+            st.session_state.emoji_analysis = not st.session_state.emoji_analysis
+        if st.session_state.emoji_analysis:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.dataframe(st.session_state.emoji_df)
+            with col2:
+                st.pyplot(st.session_state.fig9)
+
+    # Button for Sentiment Analysis
+    if uploaded_file is not None and "df" in st.session_state:
+        if st.button("Sentiment Analysis"):
+            st.session_state.sentiment_analysis = not st.session_state.sentiment_analysis
+
+        if st.session_state.sentiment_analysis:
+            df = st.session_state.df  # Retrieve DataFrame from session state
+
+            # Check if 'sentiment' column exists
+            if 'sentiment' not in df.columns:
                 # Perform sentiment analysis
                 sentiments = helper.perform_sentiment_analysis(df['message'])
 
                 # Add sentiment to DataFrame
                 df['sentiment'] = sentiments
 
-                # Aggregate sentiments for overall chat mood
-                overall_sentiment = df['sentiment'].value_counts().idxmax()
+                # Update session state with sentiment data
+                st.session_state.df = df
 
-                # Reset index to get continuous numbering
-                df.reset_index(drop=True, inplace=True)
-                df.index = df.index + 1
+            # Display sentiment analysis results
+            st.header('Sentiment Analysis')
+            st.write(df[['user', 'message', 'sentiment']])
 
-                # Display data
-                st.header('Sentiment Analysis')
-                st.write(df[['user', 'message', 'sentiment']])
+            # Display sentiment pie chart
+            st.header('Overall Mood of the Chat')
 
-                # Display overall mood of the chat
-                st.header('Overall Mood of the Chat')
-                st.write(
-                    f"The overall mood of the chat is {overall_sentiment.lower()}.")
+            # Calculate sentiment percentages
+            sentiment_counts = df['sentiment'].value_counts(
+                normalize=True) * 100
+            sentiment_labels = sentiment_counts.index
+            sentiment_sizes = sentiment_counts.values
+
+            # Create a smaller pie chart
+            # Adjust the figsize to make it smaller
+            fig, ax = plt.subplots(figsize=(2, 2))
+            ax.pie(
+                sentiment_sizes,
+                labels=sentiment_labels,
+                autopct='%1.1f%%',
+                colors=['#66b3ff', '#99ff99', '#ffcc99']
+            )
+            # Equal aspect ratio ensures that pie is drawn as a circle
+            ax.axis('equal')
+
+            # Display the pie chart
+            st.pyplot(fig)
