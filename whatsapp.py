@@ -3,12 +3,32 @@ import matplotlib.pyplot as plt
 import preprocessor
 import helper
 import seaborn as sns
+from fpdf import FPDF
+import os
 
 
 def whatsapp():
     st.sidebar.title("WhatsApp Chat Analyzer")
 
     uploaded_file = st.sidebar.file_uploader("Choose a file")
+
+    # Initialize session state variables
+    if 'monthly_timeline' not in st.session_state:
+        st.session_state.monthly_timeline = False
+    if 'daily_timeline' not in st.session_state:
+        st.session_state.daily_timeline = False
+    if 'activity_map' not in st.session_state:
+        st.session_state.activity_map = False
+    if 'busy_users' not in st.session_state:
+        st.session_state.busy_users = False
+    if 'wordcloud' not in st.session_state:
+        st.session_state.wordcloud = False
+    if 'common_words' not in st.session_state:
+        st.session_state.common_words = False
+    if 'emoji_analysis' not in st.session_state:
+        st.session_state.emoji_analysis = False
+    if 'sentiment_analysis' not in st.session_state:
+        st.session_state.sentiment_analysis = False
 
     if uploaded_file is not None:
         # To read file as bytes:
@@ -28,29 +48,17 @@ def whatsapp():
         selected_user = st.sidebar.selectbox(
             "Show analysis with respect to", user_list)
 
+        num_messages, words, num_media_msg, num_links = 0, 0, 0, 0
+
         if st.sidebar.button("Show Analysis"):
-
-            # Initialize session state variables for each section
-            if "monthly_timeline" not in st.session_state:
-                st.session_state.monthly_timeline = False
-            if "daily_timeline" not in st.session_state:
-                st.session_state.daily_timeline = False
-            if "activity_map" not in st.session_state:
-                st.session_state.activity_map = False
-            if "busy_users" not in st.session_state:
-                st.session_state.busy_users = False
-            if "wordcloud" not in st.session_state:
-                st.session_state.wordcloud = False
-            if "common_words" not in st.session_state:
-                st.session_state.common_words = False
-            if "emoji_analysis" not in st.session_state:
-                st.session_state.emoji_analysis = False
-            if "sentiment_analysis" not in st.session_state:
-                st.session_state.sentiment_analysis = False
-
             # Stats Analysis
             num_messages, words, num_media_msg, num_links = helper.fetch_stats(
                 selected_user, df)
+            st.session_state.num_messages = num_messages
+            st.session_state.words = words
+            st.session_state.num_media_msg = num_media_msg
+            st.session_state.num_links = num_links
+
             st.title("Top Statistics")
             col1, col2, col3, col4 = st.columns(4)
 
@@ -182,31 +190,27 @@ def whatsapp():
             df['sentiment'] = sentiments
             overall_sentiment = df['sentiment'].value_counts().idxmax()
 
-            # Reset index to get continuous numbering
-            df.reset_index(drop=True, inplace=True)
-            df.index = df.index + 1
-
             # Store in session state
             st.session_state.df = df
             st.session_state.overall_sentiment = overall_sentiment
 
     # Button for Monthly Timeline
     if uploaded_file is not None and "fig1" in st.session_state:
-        if st.button(" Monthly Timeline"):
+        if st.button("Monthly Timeline"):
             st.session_state.monthly_timeline = not st.session_state.monthly_timeline
         if st.session_state.monthly_timeline:
             st.pyplot(st.session_state.fig1)
 
     # Button for Daily Timeline
     if uploaded_file is not None and "fig2" in st.session_state:
-        if st.button(" Daily Timeline"):
+        if st.button("Daily Timeline"):
             st.session_state.daily_timeline = not st.session_state.daily_timeline
         if st.session_state.daily_timeline:
             st.pyplot(st.session_state.fig2)
 
     # Button for Activity Map
     if uploaded_file is not None and "fig3" in st.session_state and "fig4" in st.session_state and "fig5" in st.session_state:
-        if st.button(" Activity Map"):
+        if st.button("Activity Map"):
             st.session_state.activity_map = not st.session_state.activity_map
         if st.session_state.activity_map:
             col1, col2 = st.columns(2)
@@ -218,7 +222,7 @@ def whatsapp():
 
     # Button for Most Busy Users
     if uploaded_file is not None and "fig6" in st.session_state and selected_user == 'overall':
-        if st.button(" Most Busy Users"):
+        if st.button("Most Busy Users"):
             st.session_state.busy_users = not st.session_state.busy_users
         if st.session_state.busy_users:
             col1, col2 = st.columns(2)
@@ -229,14 +233,14 @@ def whatsapp():
 
     # Button for Word Cloud
     if uploaded_file is not None and "fig7" in st.session_state:
-        if st.button(" Word Cloud"):
+        if st.button("Word Cloud"):
             st.session_state.wordcloud = not st.session_state.wordcloud
         if st.session_state.wordcloud:
             st.pyplot(st.session_state.fig7)
 
     # Button for Most Common Words
     if uploaded_file is not None and "fig8" in st.session_state:
-        if st.button(" Most Common Words"):
+        if st.button("Most Common Words"):
             st.session_state.common_words = not st.session_state.common_words
         if st.session_state.common_words:
             st.pyplot(st.session_state.fig8)
@@ -244,49 +248,29 @@ def whatsapp():
 
     # Button for Emoji Analysis
     if uploaded_file is not None and "fig9" in st.session_state:
-        if st.button(" Emoji Analysis"):
+        if st.button("Emoji Analysis"):
             st.session_state.emoji_analysis = not st.session_state.emoji_analysis
         if st.session_state.emoji_analysis:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.dataframe(st.session_state.emoji_df)
-            with col2:
-                st.pyplot(st.session_state.fig9)
+            st.pyplot(st.session_state.fig9)
+            st.dataframe(st.session_state.emoji_df)
 
     # Button for Sentiment Analysis
     if uploaded_file is not None and "df" in st.session_state:
         if st.button("Sentiment Analysis"):
-            st.session_state.sentiment_analysis = not st.session_state.sentiment_analysis
+            # Reset index to get continuous numbering
+            df = st.session_state.df
+            df.reset_index(drop=True, inplace=True)
+            df.index = df.index + 1
 
-        if st.session_state.sentiment_analysis:
-            df = st.session_state.df  # Retrieve DataFrame from session state
-
-            # Check if 'sentiment' column exists
-            if 'sentiment' not in df.columns:
-                # Perform sentiment analysis
-                sentiments = helper.perform_sentiment_analysis(df['message'])
-
-                # Add sentiment to DataFrame
-                df['sentiment'] = sentiments
-
-                # Update session state with sentiment data
-                st.session_state.df = df
-
-            # Display sentiment analysis results
-            st.header('Sentiment Analysis')
+            # Display data
             st.write(df[['user', 'message', 'sentiment']])
-
-            # Display sentiment pie chart
-            st.header('Overall Mood of the Chat')
-
-            # Calculate sentiment percentages
-            sentiment_counts = df['sentiment'].value_counts(
+            st.write(
+                f"Overall Sentiment: {st.session_state.overall_sentiment}")
+            sentiment_counts = st.session_state.df['sentiment'].value_counts(
                 normalize=True) * 100
             sentiment_labels = sentiment_counts.index
             sentiment_sizes = sentiment_counts.values
 
-            # Create a smaller pie chart
-            # Adjust the figsize to make it smaller
             fig, ax = plt.subplots(figsize=(2, 2))
             ax.pie(
                 sentiment_sizes,
@@ -294,8 +278,54 @@ def whatsapp():
                 autopct='%1.1f%%',
                 colors=['#66b3ff', '#99ff99', '#ffcc99']
             )
-            # Equal aspect ratio ensures that pie is drawn as a circle
             ax.axis('equal')
 
-            # Display the pie chart
             st.pyplot(fig)
+
+    # PDF Report Generation
+    if uploaded_file is not None and st.sidebar.button("Generate Report"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+
+        # Adding text content to PDF
+        pdf.cell(200, 10, txt="WhatsApp Chat Analysis Report",
+                 ln=True, align="C")
+        pdf.ln(10)
+
+        # Statistics Section
+        pdf.cell(200, 10, txt="Top Statistics", ln=True, align="L")
+        pdf.ln(5)
+        pdf.cell(
+            200, 10, txt=f"Total Messages: {st.session_state.num_messages}", ln=True, align="L")
+        pdf.cell(
+            200, 10, txt=f"Total Words: {st.session_state.words}", ln=True, align="L")
+        pdf.cell(
+            200, 10, txt=f"Media Shared: {st.session_state.num_media_msg}", ln=True, align="L")
+        pdf.cell(
+            200, 10, txt=f"Links Shared: {st.session_state.num_links}", ln=True, align="L")
+        pdf.ln(10)
+
+        # Save plots as images and add to PDF
+        for i, fig in enumerate([st.session_state.fig1, st.session_state.fig2, st.session_state.fig3,
+                                 st.session_state.fig4, st.session_state.fig5, st.session_state.fig6,
+                                 st.session_state.fig7, st.session_state.fig8, st.session_state.fig9], start=1):
+            if fig:
+                img_path = f"temp_fig_{i}.png"
+                fig.savefig(img_path)
+                pdf.image(img_path, x=10, w=180)
+                pdf.ln(10)
+                # Clean up the image file after adding it to the PDF
+                os.remove(img_path)
+
+        # Save PDF file and provide a download button
+        pdf_output_path = "chat_analysis_report.pdf"
+        pdf.output(pdf_output_path)
+
+        with open(pdf_output_path, "rb") as pdf_file:
+            st.sidebar.download_button(
+                label="Download Report",
+                data=pdf_file,
+                file_name=pdf_output_path,
+                mime="application/pdf"
+            )
