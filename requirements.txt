@@ -6,3 +6,4 @@ wordcloud
 pandas
 emoji
 nltk
+fpdf
